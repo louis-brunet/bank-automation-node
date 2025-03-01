@@ -2,11 +2,16 @@
   "name": "bank-automation-node",
   "packageManager": "yarn@4.3.1",
   "scripts": {
-    "lint": "yarn run eslint",
+    "lint": "yarn run eslint --ignore-pattern='dist/'",
     "lint:fix": "yarn run lint --fix",
-    "prettier": "yarn run prettier src test ./*.mjs",
+    "style": "yarn run prettier src test ./*.mjs",
+    "style:check": "yarn run style --check",
+    "style:fix": "yarn run style --write",
     "build": "tsc",
-    "start": "node --env-file=.env dist/index.js"
+    "start": "node --env-file=.env dist/index.js",
+    "postinstall": "husky install",
+    "prepublishOnly": "pinst --disable",
+    "postpublish": "pinst --enable"
   },
   "dependencies": {
     "yup": "^1.6.1"
@@ -18,8 +23,14 @@
     "eslint-config-prettier": "^10.0.2",
     "eslint-plugin-prettier": "^5.2.3",
     "globals": "^16.0.0",
+    "husky": ">=6",
+    "lint-staged": ">=10",
+    "pinst": ">=2",
     "prettier": "^3.5.2",
-    "typescript": "^5.7.0",
+    "typescript": "<5.8.0",
     "typescript-eslint": "^8.25.0"
+  },
+  "lint-staged": {
+    "*.{js,ts}": ["yarn run style:fix", "yarn run lint:fix --cache"]
   }
 }

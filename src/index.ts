@@ -1,12 +1,12 @@
 import { configureCaisseDEpargne, Env } from './config';
 
 async function main() {
-    const env = new Env();
-    const config = await configureCaisseDEpargne(env);
+  const env = new Env();
+  const config = await configureCaisseDEpargne(env);
 
-    console.log({ config });
+  console.log({ config });
 }
 
 main()
-    .then(() => console.log('Done'))
-    .catch(console.error);
+  .then(() => console.log('Done'))
+  .catch(console.error);
