@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../tsconfig.json",
+  "include": ["../{src,test}/**/*.ts"],
+  "compilerOptions": {
+    // "strict": false,
+    "noImplicitAny": false
+  }
+}

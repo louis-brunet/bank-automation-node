@@ -1,6 +1,10 @@
 {
   "name": "bank-automation-node",
   "packageManager": "yarn@4.3.1",
+  "engineStrict": true,
+  "engines": {
+    "node": ">= 22.14.0"
+  },
   "scripts": {
     "lint": "yarn run eslint --ignore-pattern='dist/'",
     "lint:fix": "yarn run lint --fix",
@@ -8,12 +12,19 @@
     "style:check": "yarn run style --check",
     "style:fix": "yarn run style --write",
     "build": "tsc",
-    "start": "node --env-file=.env dist/index.js",
+    "start": "node --env-file=.env --enable-source-maps dist/main.js",
+    "test": "TS_NODE_PROJECT=test/tsconfig.json node --require ts-node/register --test test/**/*.spec.ts",
     "postinstall": "husky install",
     "prepublishOnly": "pinst --disable",
     "postpublish": "pinst --enable"
   },
   "dependencies": {
+    "@abraham/reflection": "^0.12.0",
+    "node-easyocr": "^1.0.9",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "puppeteer": "^24.3.0",
+    "tsyringe": "^4.8.0",
     "yup": "^1.6.1"
   },
   "devDependencies": {
@@ -27,10 +38,15 @@
     "lint-staged": ">=10",
     "pinst": ">=2",
     "prettier": "^3.5.2",
+    "ts-node": "^10.9.2",
     "typescript": "<5.8.0",
     "typescript-eslint": "^8.25.0"
   },
   "lint-staged": {
-    "*.{js,ts}": ["yarn run style:fix", "yarn run lint:fix --cache"]
-  }
+    "*.{js,ts}": [
+      "yarn run style:fix",
+      "yarn run lint:fix --cache"
+    ]
+  },
+  "$schema": "https://json.schemastore.org/package.json"
 }
