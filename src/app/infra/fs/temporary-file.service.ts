@@ -11,6 +11,26 @@ export type TemporaryFileServiceFunction<Result> = (
   fileName: string,
 ) => PromiseLike<Result>;
 
+class TemporaryFile implements AsyncDisposable {
+  public readonly fileName: string;
+  private readonly logger: Logger | undefined;
+
+  constructor(namePrefix: string, options?: { logger?: Logger }) {
+    this.fileName = join(tmpdir(), `${namePrefix}-${randomUUID()}`);
+    this.logger = options?.logger;
+  }
+
+  async init() {
+    const fileHandle = await fs.open(this.fileName, 'w');
+    await fileHandle.close();
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await fs.rm(this.fileName, { force: true, maxRetries: 3 });
+    this.logger?.debug(`deleted temporary file ${this.fileName}`);
+  }
+}
+
 @singleton()
 export class TemporaryFileService {
   private readonly logger: Logger;
@@ -30,26 +50,9 @@ export class TemporaryFileService {
     );
     logger.trace('called');
 
-    let tempDir: string;
-    try {
-      tempDir = await fs.mkdtemp(join(tmpdir(), this.appConfig.name));
-      logger.debug(`created temp dir ${tempDir}`);
-    } catch (e) {
-      logger.error({ error: e }, 'could not create temp dir');
-      return undefined;
-    }
-    const tempFile = join(tempDir, randomUUID());
-
-    try {
-      logger.debug(`calling given function for temporary file ${tempFile}`);
-      return await fileFunction(tempFile);
-    } finally {
-      try {
-        await fs.rm(tempDir, { recursive: true });
-        logger.debug(`deleted temporary file ${tempFile}`);
-      } catch (e) {
-        logger.error({ error: e }, `could not delete temp dir ${tempDir}`);
-      }
-    }
+    await using tempFile = new TemporaryFile(this.appConfig.name, {
+      logger: this.loggerService.getChild(this.logger, TemporaryFile.name),
+    });
+    return await fileFunction(tempFile.fileName);
   }
 }

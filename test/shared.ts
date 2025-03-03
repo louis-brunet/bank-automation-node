@@ -1,10 +1,28 @@
-import assert from 'node:assert';
-import { afterEach, beforeEach, describe, it } from 'node:test';
+import {
+  after,
+  afterEach,
+  beforeEach,
+  describe,
+  it,
+  TestContext,
+} from 'node:test';
 import { container, DependencyContainer } from 'tsyringe';
-import { PROCESS_ENV_SYMBOL } from '../src';
+import {
+  BrowserService,
+  DigitRecognitionService,
+  LoggerService,
+  PROCESS_ENV_SYMBOL,
+  TemporaryFileService,
+} from '../src';
 
 export function configureTestDependencies(container: DependencyContainer) {
   container.register(PROCESS_ENV_SYMBOL, { useValue: {} });
+  container.register(DigitRecognitionService, {
+    useClass: DigitRecognitionService,
+  });
+  container.register(LoggerService, { useClass: LoggerService });
+  container.register(TemporaryFileService, { useClass: TemporaryFileService });
+  container.register(BrowserService, { useClass: BrowserService });
 }
 
 export type UnitTestSuiteContext<TestClass> = {
@@ -16,37 +34,12 @@ export type UnitTestSuiteContext<TestClass> = {
 type Class<T> = {
   new (...args): T;
 };
-// type Class<T> = {
-//   new(...args: ConstructorParameters<T>): T;
-// };
-// type Class<T, TArgs, TArgsArray extends Array<TArgs> = Array<TArgs>> = {
-//   new(...args: TArgsArray): T;
-// };
-
-// class MockContainer {
-//   container: DependencyContainer;
-//
-//   resolve<T>(token: any): T {
-//     if (!this.container.isRegistered(token)) {
-//       return new Proxy(
-//         {},
-//         {
-//           get: () => {
-//             throw new Error(`Not implemented: ${token.name || token}`);
-//           },
-//         },
-//       ) as T;
-//     }
-//     return this.container.resolve<T>(token);
-//   }
-// }
 
 export async function createUnitTestSuite<TestClass>(
   clazz: Class<TestClass>,
-  // name: string,
   suite: (context: UnitTestSuiteContext<TestClass>) => Promise<unknown>,
 ) {
-  await describe(clazz.name, {}, async () => {
+  await describe(clazz.name, {}, async (_context) => {
     const parentContainer = container;
 
     function initContainer() {
@@ -64,19 +57,25 @@ export async function createUnitTestSuite<TestClass>(
       container: initialChildContainer,
       testClass: initTestClass(initialChildContainer),
     };
-    // let childContainer: DependencyContainer;
 
     beforeEach((_testContext) => {
+      // console.debug(`[${context.name}:beforeEach]`);
       suiteContext.container = initContainer();
       suiteContext.testClass = initTestClass(suiteContext.container);
     });
 
     afterEach(async () => {
       await suiteContext.container.dispose();
+      // console.debug(`[${clazz.name}:afterEach] finished disposal`);
     });
 
-    await it('is defined', () => {
-      assert.ok(suiteContext.testClass);
+    after(async () => {
+      // TODO: this might cause failures when there are multiple test suites
+      await parentContainer.dispose();
+    });
+
+    await it('is defined', { plan: 1 }, (t: TestContext) => {
+      t.assert.ok(suiteContext.testClass);
     });
 
     await suite(suiteContext);
