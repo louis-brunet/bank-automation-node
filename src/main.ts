@@ -16,8 +16,6 @@ async function main() {
   const loggerService = container.resolve(LoggerService);
   const logger = loggerService.getLogger(main.name);
   try {
-    // const config = container.resolve(CaisseDEpargneConfig);
-    //
     const adapter = container.resolve(CaisseDEpargneAdapter);
     const balance = await adapter.getCheckingAccountBalance();
     logger.info({ balance });
@@ -26,6 +24,7 @@ async function main() {
   } finally {
     await container.dispose();
     logger.info('Disposable instances disposed');
+    // process.exit(0);
   }
 }
 

@@ -33,7 +33,9 @@ export class BrowserService implements Disposable {
   }
 
   async dispose(): Promise<void> {
+    const logger = this.loggerService.getChild(this._logger, this.dispose.name);
     await this.close();
+    logger.trace('disposed');
   }
 
   async close() {

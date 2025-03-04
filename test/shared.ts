@@ -15,8 +15,11 @@ import {
   TemporaryFileService,
 } from '../src';
 
-export function configureTestDependencies(container: DependencyContainer) {
-  container.register(PROCESS_ENV_SYMBOL, { useValue: {} });
+export function configureTestDependencies(
+  container: DependencyContainer,
+  processEnv: Record<string, unknown> = {},
+) {
+  container.register(PROCESS_ENV_SYMBOL, { useValue: processEnv });
   container.register(DigitRecognitionService, {
     useClass: DigitRecognitionService,
   });
@@ -37,14 +40,15 @@ type Class<T> = {
 
 export async function createUnitTestSuite<TestClass>(
   clazz: Class<TestClass>,
-  suite: (context: UnitTestSuiteContext<TestClass>) => Promise<unknown>,
+  suite: (context: UnitTestSuiteContext<TestClass>) => Promise<void> | void,
+  options?: { processEnv?: Record<string, unknown> },
 ) {
   await describe(clazz.name, {}, async (_context) => {
     const parentContainer = container;
 
     function initContainer() {
       const childContainer = parentContainer.createChildContainer();
-      configureTestDependencies(childContainer);
+      configureTestDependencies(childContainer, options?.processEnv);
       return childContainer;
     }
 

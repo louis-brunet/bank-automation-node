@@ -32,31 +32,18 @@ void createUnitTestSuite(DigitRecognitionService, async (context) => {
         'digit_8.png',
         'digit_9.png',
       ];
-
-      // FIXME: figure out why test hangs with Promise.all
-      //  It is probably the same thing that makes the app hang and need to be interrupted
-      //
-      // const promises = digitFileNames.map(async (digitFileName, digit) => {
-      //   const digitPath = path.join(__dirname, 'images', digitFileName);
-      //   const digitBase64 = base64EncodeFile(digitPath);
-      //   const result =
-      //     await context.testClass.recognizeDigitFromBase64(digitBase64);
-      //   t.assert.equal(result /*  ?? 1 */, digit);
-      //   console.debug(`recognized ${digit.toString(10)}`);
-      //   return result;
-      // });
-      // console.log('foo');
-      // await Promise.all(promises);
-      // console.log('hi');
-
-      for (const [digit, digitFileName] of digitFileNames.entries()) {
+      const promises = digitFileNames.map(async (digitFileName, digit) => {
         const digitPath = path.join(__dirname, 'images', digitFileName);
         const digitBase64 = base64EncodeFile(digitPath);
         const result =
           await context.testClass.recognizeDigitFromBase64(digitBase64);
 
         t.assert.equal(result, digit);
-      }
+
+        // console.debug(`recognized ${digit.toString(10)}`);
+        return result;
+      });
+      await Promise.all(promises);
     });
   });
 });

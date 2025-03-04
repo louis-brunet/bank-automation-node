@@ -1,6 +1,10 @@
 import fs from 'node:fs/promises';
 import { Logger } from 'pino';
-import Tesseract, { createWorker, type Worker } from 'tesseract.js';
+import Tesseract, {
+  createScheduler,
+  createWorker,
+  Scheduler,
+} from 'tesseract.js';
 import { Disposable, singleton } from 'tsyringe';
 import { LoggerService, TemporaryFileService } from '../infra';
 
@@ -11,7 +15,7 @@ const MAP_CHARACHER_TO_DIGIT: Record<string, string> = {
 @singleton()
 export class DigitRecognitionService implements Disposable {
   private readonly logger: Logger;
-  private worker: Worker | undefined = undefined;
+  private scheduler: Scheduler | undefined = undefined;
 
   constructor(
     private readonly loggerService: LoggerService,
@@ -20,17 +24,10 @@ export class DigitRecognitionService implements Disposable {
     this.logger = this.loggerService.getLogger(DigitRecognitionService.name);
   }
 
-  // async [Symbol.asyncDispose](): Promise<void> {
-  //   await this.worker?.terminate();
-  //   this.worker = undefined;
-  // }
-
   async dispose() {
     const logger = this.loggerService.getChild(this.logger, this.dispose.name);
-    logger.trace('called');
-    // await this[Symbol.asyncDispose]();
-    await this.worker?.terminate();
-    this.worker = undefined;
+    await this.scheduler?.terminate();
+    logger.trace('disposed');
   }
 
   async recognizeDigitFromBase64(base64Image: string): Promise<number | null> {
@@ -41,16 +38,12 @@ export class DigitRecognitionService implements Disposable {
     logger.trace({ base64Image });
 
     try {
-      const worker = await this.getWorker();
       const imageBytes = Buffer.from(base64Image, 'base64');
-      // const fixedBytes = this._removeBytesAfterIendChunk(imageBytes);
-      // const result = await worker.recognize(fixedBytes, {});
       const result = await this.temporaryFileService.useTemporaryFile(
         async (tempFilePath) => {
           await fs.writeFile(tempFilePath, imageBytes);
-          const result = await worker.recognize(tempFilePath, {});
+          const result = await this.recognize(tempFilePath, {});
           return result;
-          // return await Promise.resolve({ data: { text: '0' } });
         },
       );
       logger.debug({ result });
@@ -75,17 +68,31 @@ export class DigitRecognitionService implements Disposable {
     return parsed;
   }
 
-  private async getWorker() {
-    if (!this.worker) {
-      // this.worker = await createWorker('eng', Tesseract.OEM.DEFAULT, {
-      //   logger: this.logger.debug,
-      // });
-      this.worker = await createWorker('eng');
-      await this.worker.setParameters({
-        tessedit_char_whitelist: '0123456789|',
-        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_CHAR,
-      });
+  private async createWorker() {
+    const workerLogger = this.loggerService.getChild(this.logger, 'WORKER');
+    const worker = await createWorker('eng', Tesseract.OEM.DEFAULT, {
+      logger: (msg) => {
+        workerLogger.debug(JSON.stringify(msg));
+      },
+    });
+    await worker.setParameters({
+      tessedit_char_whitelist: '0123456789|',
+      tessedit_pageseg_mode: Tesseract.PSM.SINGLE_CHAR,
+    });
+    return worker;
+  }
+
+  private async recognize(
+    image: Tesseract.ImageLike,
+    options: Partial<Tesseract.RecognizeOptions>,
+  ) {
+    if (!this.scheduler) {
+      this.scheduler = createScheduler();
     }
-    return this.worker;
+    if (this.scheduler.getQueueLen() + 1 > 2 * this.scheduler.getNumWorkers()) {
+      const newWorker = await this.createWorker();
+      this.scheduler.addWorker(newWorker);
+    }
+    return await this.scheduler.addJob('recognize', image, options);
   }
 }

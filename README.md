@@ -3,6 +3,7 @@
 ```bash
 yarn install
 yarn build
+yarn test
 yarn start
 ```
 
