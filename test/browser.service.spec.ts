@@ -2,16 +2,17 @@ import './setup';
 
 import { BrowserService } from '../src';
 import { createUnitTestSuite } from './shared';
+import { describe } from 'node:test';
 
 void createUnitTestSuite(
   BrowserService,
-  (_context) => {
+  async (_context) => {
     // beforeEach(() => {
     //   context.container.register(PROCESS_ENV_SYMBOL, {
     //     useValue: { BROWSER: 'chrome' },
     //   });
     // });
-    // await describe('TODO', { todo: true }, () => {});
+    await describe('should be tested', { todo: true }, () => {});
   },
   {
     processEnv: {

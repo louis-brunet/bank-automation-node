@@ -1,23 +1,28 @@
 import { singleton } from 'tsyringe';
-import { boolean, number, object, string } from 'yup';
+import { boolean, InferType, number, object, string } from 'yup';
 import { Env } from './env';
 import { SupportedBrowser } from 'puppeteer';
 
 const envSchema = object({
   BROWSER_DEFAULT_TIMEOUT_MILLISECONDS: number()
-    .integer()
-    .positive()
-    .default(5_000),
-  BROWSER: string<SupportedBrowser>().required().oneOf(['chrome', 'firefox']),
-  BROWSER_HEADLESS: boolean().default(true),
-  BROWSER_SLOW_MO_MILLISECONDS: number()
+    .optional()
     .integer()
     .min(0)
+    .default(5_000),
+  BROWSER: string<SupportedBrowser>()
     .optional()
+    .oneOf(['chrome', 'firefox'])
+    .default('chrome'),
+  BROWSER_HEADLESS: boolean().optional().default(true),
+  BROWSER_SLOW_MO_MILLISECONDS: number()
+    .optional()
+    .integer()
+    .min(0)
     .transform((value: unknown, originalValue: unknown) =>
       originalValue === '' ? undefined : value,
     ),
 });
+export type BrowserEnv = InferType<typeof envSchema>;
 
 @singleton()
 export class BrowserConfig {

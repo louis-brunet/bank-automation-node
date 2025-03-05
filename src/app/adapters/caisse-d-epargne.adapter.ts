@@ -1,6 +1,10 @@
 import assert from 'node:assert';
 import { singleton } from 'tsyringe';
-import { CaisseDEpargneConfig } from '../config';
+import {
+  CAISSE_D_EPARGNE_PASSWORD_MAX_LENGTH,
+  CAISSE_D_EPARGNE_PASSWORD_MIN_LENGTH,
+  CaisseDEpargneConfig,
+} from '../config';
 import {
   BrowserService,
   BrowserServiceFindBy,
@@ -8,6 +12,13 @@ import {
   LoggerService,
 } from '../infra';
 import { DigitRecognitionService } from '../services';
+
+export class CaisseDEpargnePasswordParseIntError extends Error {
+  constructor(passwordChar: string) {
+    assert.equal(passwordChar.length, 1);
+    super(`could not parse password character '${passwordChar}' as an integer`);
+  }
+}
 
 @singleton()
 export class CaisseDEpargneAdapter {
@@ -29,6 +40,16 @@ export class CaisseDEpargneAdapter {
     );
     logger.trace('called');
 
+    await this.login();
+
+    logger.warn('TODO');
+    return -1;
+  }
+
+  private async login() {
+    const logger = this.loggerService.getChild(this.logger, this.login.name);
+    logger.trace('called');
+
     await this.browserService.get(
       `${this.config.baseUrl}/banque-a-distance/acceder-compte/`,
     );
@@ -43,24 +64,90 @@ export class CaisseDEpargneAdapter {
     );
     // await this.browserService.clickElementById('p-identifier-btn-validate');
 
-    const buttons = await this.browserService.findElements({
+    await using buttons = await this.browserService.findElements({
       by: BrowserServiceFindBy.SELECTOR,
       query: 'button.keyboard-button',
       cssProperties: ['background-image'],
     });
-    assert.equal(buttons.length, 10, 'Expected one button for each digit 0-9');
+    assert.equal(
+      buttons.elements.length,
+      10,
+      'Expected 10 buttons, one for each digit 0-9',
+    );
 
     const buttonsWithDigit = await Promise.all(
-      buttons.map((button) => this._getDigitFromButton(button)),
+      buttons.elements.map((button) => this._getDigitFromButton(button)),
     );
     const sortedButtons = buttonsWithDigit.sort((button1, button2) => {
       return button1.digit - button2.digit;
     });
+
     logger.info({ sortedButtons }, 'Finished sorting buttons');
 
-    logger.warn('TODO');
+    const passwordLength = this.config.accountPassword.length;
+    assert.ok(passwordLength >= CAISSE_D_EPARGNE_PASSWORD_MIN_LENGTH);
+    assert.ok(passwordLength <= CAISSE_D_EPARGNE_PASSWORD_MAX_LENGTH);
+    for (
+      let passwordCharIndex = 0;
+      passwordCharIndex < passwordLength;
+      passwordCharIndex++
+    ) {
+      const nextChar = this.config.accountPassword.charAt(passwordCharIndex);
+      const nextDigit = Number.parseInt(nextChar);
+      if (!Number.isInteger(nextDigit)) {
+        throw new CaisseDEpargnePasswordParseIntError(nextChar);
+      }
+      const buttonToClick = sortedButtons[nextDigit];
+      assert.ok(buttonToClick);
+      await this.browserService.clickFoundElement(buttonToClick.button);
+    }
 
-    return -1;
+    logger.debug('clicking password submit');
+    await this.browserService.clickElementById('p-password-btn-submit');
+
+    // TODO: handle incorrect username/password
+
+    logger.debug('waiting for MFA dialog to disappear');
+    await this.browserService.waitForElementToDisappear(
+      '#m-identifier-cloudcard-btn-fallback',
+    );
+    logger.info('Could not find MFA dialog button, continuing');
+
+    const sleepMs = 3_000;
+    await new Promise((resolve) => {
+      setTimeout(resolve, sleepMs);
+    });
+    throw new Error('todo');
+
+    // remaining_password = self.config.account_password
+    //
+    // while remaining_password != "":
+    //     try:
+    //         next_char = int(remaining_password[0])
+    //     except ValueError:
+    //         raise PasswordParseError()
+    //     if next_char < 0 or next_char > 9:
+    //         raise PasswordParseError()
+    //
+    //     button = ordered_buttons[next_char]
+    //     button.click()
+    //     remaining_password = remaining_password[1:]
+    //
+    // logger.debug("submit password")
+    // password_submit_button = self.browser_service.find_element_by_id(
+    //     id="p-password-btn-submit"
+    // )
+    // password_submit_button.click()
+    //
+    // time.sleep(2)  # TODO: remove sleep
+    //
+    // logger.debug(f"URL: {self.browser_service.get_current_url()}")
+    //
+    // await self.browser_service.wait_for_element_to_disappear(
+    //     by=By.ID, value="m-identifier-cloudcard-btn-fallback"
+    // )
+    //
+    // logger.info("Could not find MFA dialog button, continuing")
   }
 
   private async _getDigitFromButton(

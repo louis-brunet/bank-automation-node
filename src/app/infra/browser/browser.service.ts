@@ -11,13 +11,10 @@ import {
   BrowserServiceFindElementRequest,
   BrowserServiceFindElementResponse,
   BrowserServiceFoundElement,
+  BrowserServiceFoundElements,
+  ClassProperties,
   RequestedCssProperty,
 } from './types';
-
-// type ForEachFunction<Item> = (item: Item) => void;
-// type ElementArray<El extends Element = Element> = {
-//   forEach: (fn: ForEachFunction<El>) => void;
-// };
 
 @injectable()
 export class BrowserService implements Disposable {
@@ -83,16 +80,10 @@ export class BrowserService implements Disposable {
   }
 
   async findElements<
-    Request extends BrowserServiceFindElementRequest<CssProperty>,
-    CssProperty extends Request['cssProperties'] extends Array<
-      infer Prop extends string
-    >
-      ? Prop
-      : never = Request['cssProperties'] extends Array<
-      infer Prop extends string
-    >
-      ? Prop
-      : never,
+    Request extends BrowserServiceFindElementRequest<CssProperty, Query>,
+    CssProperty extends
+      RequestedCssProperty<Request> = RequestedCssProperty<Request>,
+    Query extends string = Request['query'],
   >(request: Request): Promise<BrowserServiceFindElementResponse<Request>> {
     const logger = this.loggerService.getChild(
       this._logger,
@@ -114,68 +105,24 @@ export class BrowserService implements Disposable {
       default:
         throw new Error('unrecognized enum value');
     }
+  }
 
-    // const selector =
-    //   request.by === BrowserServiceFindBy.ID
-    //     ? `#${request.query}`
-    //     : request.query;
-    //
-    // const page = await this._getPage();
-    // await page.locator(selector).wait();
-    // logger.debug('waited for elements');
-    //
-    // const elements = await page.evaluate(
-    //   (by: BrowserServiceFindBy, query: string) => {
-    //     let elements: ElementArray<HTMLElement> | ElementArray = [];
-    //     switch (by) {
-    //       case BrowserServiceFindBy.ID: {
-    //         const element = document.getElementById(query);
-    //         if (element) {
-    //           elements = [element];
-    //         }
-    //         break;
-    //       }
-    //       case BrowserServiceFindBy.SELECTOR: {
-    //         elements = document.querySelectorAll(query);
-    //         break;
-    //       }
-    //       default:
-    //         throw new Error('unrecognized enum value');
-    //     }
-    //
-    //     const result: BrowserServiceFoundElement[] = [];
-    //     elements.forEach((element) => {
-    //       const found: BrowserServiceFoundElement = { element };
-    //       if (request.options?.withStyle) {
-    //         found.style = window.getComputedStyle(element);
-    //       }
-    //       result.push(found);
-    //     });
-    //     return result;
-    //   },
-    //   request.by,
-    //   request.query,
-    // );
-    // logger.debug(`found ${elements.length.toString(10)} elements`);
-    //
-    // switch (request.by) {
-    //   case BrowserServiceFindBy.ID: {
-    //     assert.ok(elements.length <= 1);
-    //     const element = elements[0] ?? null;
-    //     return element as Resolved;
-    //   }
-    //   case BrowserServiceFindBy.SELECTOR: {
-    //     return elements as Resolved;
-    //   }
-    //   default:
-    //     throw new Error('unrecognized enum value');
-    // }
+  async clickFoundElement(elementToClick: BrowserServiceFoundElement) {
+    await elementToClick.handle.click();
+  }
+
+  async waitForElementToDisappear(_selector: string) {
+    // const _page = await this._getPage();
+    await Promise.resolve('todo');
+    throw new Error('todo');
+    // const locator = await page.locator(selector).wait;
   }
 
   private async _findElementById<
-    Request extends BrowserServiceFindElementByIdRequest<CssProperty>,
+    Request extends BrowserServiceFindElementByIdRequest<CssProperty, Query>,
     CssProperty extends
       RequestedCssProperty<Request> = RequestedCssProperty<Request>,
+    Query extends string = Request['query'],
   >(request: Request): Promise<BrowserServiceFindElementResponse<Request>> {
     const logger = this.loggerService.getChild(
       this._logger,
@@ -195,25 +142,15 @@ export class BrowserService implements Disposable {
       return null as BrowserServiceFindElementResponse<typeof request>;
     }
 
-    throw new Error('todo');
-
-    // const element = await page.evaluate(
-    //   (element) => {
-    //     const found: BrowserServiceFoundElement = { element };
-    //     if (withStyle) {
-    //       found.style = window.getComputedStyle(element);
-    //     }
-    //     return found;
-    //   },
-    //   handle,
-    //   options?.withStyle,
-    // );
-    // logger.debug(`found element: ${JSON.stringify(element)}`);
-    // return element;
+    // TODO: find element by id
+    throw new Error('todo find element by id');
   }
 
   private async _findElementsBySelector<
-    Request extends BrowserServiceFindElementBySelectorRequest<CssProperty>,
+    Request extends BrowserServiceFindElementBySelectorRequest<
+      CssProperty,
+      string
+    >,
     CssProperty extends
       RequestedCssProperty<Request> = RequestedCssProperty<Request>,
   >(request: Request): Promise<BrowserServiceFindElementResponse<Request>> {
@@ -228,53 +165,104 @@ export class BrowserService implements Disposable {
     await page.locator(selector).wait();
     logger.debug('waited for elements');
 
-    const elements = await page.$$eval(
-      selector,
-      (selected, cssProperties) => {
-        return selected.map((element, elementIndex) => {
-          const result: BrowserServiceFoundElement<CssProperty> = {
-            elementIndex,
-          };
-          if (element.id) {
-            result.id = element.id;
-          }
-          if (cssProperties) {
-            const allStyle = window.getComputedStyle(element);
-            result.style = Object.fromEntries(
-              cssProperties.map((property) => [
-                property,
-                allStyle.getPropertyValue(property),
-              ]),
-            ) as Record<CssProperty, string>;
-            // for (const property of cssProperties) {
-            //   result.style[property] = allStyle.getPropertyValue(property);
-            // }
-          }
-          return result;
-        });
-      },
-      request.cssProperties,
-    );
+    const elementHandles = await page.$$(selector);
+    const elements: BrowserServiceFoundElement<CssProperty>[] =
+      await Promise.all(
+        elementHandles.map(async function mapElements(handle) {
+          const mappedElement = await handle.evaluateHandle(
+            (element, cssProperties) => {
+              // const foundElement: Omit<
+              //   BrowserServiceFoundElement<CssProperty>,
+              //   'handle'
+              // > = new BrowserServiceFoundElement(handle);
+              const foundElement: Omit<
+                ClassProperties<BrowserServiceFoundElement>,
+                'handle'
+              > = {};
+              if (cssProperties) {
+                const allStyle = window.getComputedStyle(element);
+                foundElement.style = Object.fromEntries(
+                  cssProperties.map((property) => [
+                    property,
+                    allStyle.getPropertyValue(property),
+                  ]),
+                ) as Record<CssProperty, string>;
+              }
+              return foundElement;
+            },
+            request.cssProperties,
+          );
+          return BrowserServiceFoundElement.from({
+            ...(await mappedElement.jsonValue()),
+            handle,
+          });
+        }),
+      );
     logger.debug(`found elements: ${JSON.stringify(elements)}`);
     logger.debug(`found ${elements.length.toString(10)} elements`);
-    return elements as BrowserServiceFindElementResponse<typeof request>;
-
-    // await page.locator(selector).wait();
+    return new BrowserServiceFoundElements(
+      elements,
+    ) as BrowserServiceFindElementResponse<typeof request>;
+    // return elements as BrowserServiceFindElementResponse<typeof request>;
+    // // const f = await e[0]?.evaluateHandle((e) => {
+    // //   window.getComputedStyle(e)
+    // //
+    // //   return false as const;
+    // // });
     //
-    // const elements = await page.$$(selector);
-    // return elements;
+    // const elements = await page.$$eval(
+    //   selector,
+    //   (selected, cssProperties, selector) => {
+    //     return selected.map((element, elementIndex) => {
+    //       const result: BrowserServiceFoundElement<CssProperty> = {
+    //         foundBy: {
+    //           by: 'selector',
+    //           selector,
+    //           index: elementIndex,
+    //         },
+    //       };
+    //       if (element.id) {
+    //         result.foundBy.id = element.id;
+    //       }
+    //       if (cssProperties) {
+    //         const allStyle = window.getComputedStyle(element);
+    //         result.style = Object.fromEntries(
+    //           cssProperties.map((property) => [
+    //             property,
+    //             allStyle.getPropertyValue(property),
+    //           ]),
+    //         ) as Record<CssProperty, string>;
+    //       }
+    //       return result;
+    //     });
+    //   },
+    //   request.cssProperties,
+    //   selector,
+    // );
+    // logger.debug(`found elements: ${JSON.stringify(elements)}`);
+    // logger.debug(`found ${elements.length.toString(10)} elements`);
+    // return elements as BrowserServiceFindElementResponse<typeof request>;
+    //
+    // // await page.locator(selector).wait();
+    // //
+    // // const elements = await page.$$(selector);
+    // // return elements;
   }
 
-  private async _locateElementById(id: string) {
+  private async _locateElement(selector: string) {
     const logger = this.loggerService.getChild(
       this._logger,
-      this._locateElementById.name,
+      this._locateElement.name,
     );
-    logger.trace({ id });
+    logger.trace({ selector });
 
     // return this.findElementsBySelector(`#${id}`);
     const page = await this._getPage();
-    return page.locator(`#${id}`);
+    return page.locator(selector);
+  }
+
+  private async _locateElementById(id: string) {
+    return await this._locateElement(`#${id}`);
   }
 
   private async _getBrowser() {
