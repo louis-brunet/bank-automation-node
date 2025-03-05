@@ -1,6 +1,12 @@
 import assert from 'node:assert';
 import { Logger } from 'pino';
-import puppeteer, { Browser, LaunchOptions, Page } from 'puppeteer';
+import puppeteer, {
+  Browser,
+  LaunchOptions,
+  Page,
+  TimeoutError,
+  WaitForSelectorOptions,
+} from 'puppeteer';
 import { Disposable, injectable } from 'tsyringe';
 import { BrowserConfig } from '../../config';
 import { LoggerService } from '../logger.service';
@@ -79,6 +85,21 @@ export class BrowserService implements Disposable {
     await element.fill(content);
   }
 
+  async isVisible(selector: string, opts?: { timeoutMs?: number }) {
+    const page = await this._getPage();
+    try {
+      const found = await page.waitForSelector(selector, {
+        timeout: opts?.timeoutMs ?? 1,
+      });
+      return !!found;
+    } catch (e) {
+      if (e instanceof TimeoutError) {
+        return false;
+      }
+      throw e;
+    }
+  }
+
   async findElements<
     Request extends BrowserServiceFindElementRequest<CssProperty, Query>,
     CssProperty extends
@@ -111,11 +132,26 @@ export class BrowserService implements Disposable {
     await elementToClick.handle.click();
   }
 
-  async waitForElementToDisappear(_selector: string) {
-    // const _page = await this._getPage();
-    await Promise.resolve('todo');
-    throw new Error('todo');
-    // const locator = await page.locator(selector).wait;
+  async waitForElementToDisappear(
+    selector: string,
+    opts?: { timeoutMs?: number },
+  ) {
+    await this.waitForSelector(selector, { ...opts, hidden: true });
+  }
+
+  async waitForSelector(
+    selector: string,
+    opts?: { hidden?: boolean; timeoutMs?: number },
+  ) {
+    const page = await this._getPage();
+    const waitOptions: WaitForSelectorOptions = {};
+    if (opts?.hidden !== undefined) {
+      waitOptions.hidden = opts.hidden;
+    }
+    if (opts?.timeoutMs !== undefined) {
+      waitOptions.timeout = opts.timeoutMs;
+    }
+    await page.waitForSelector(selector, waitOptions);
   }
 
   private async _findElementById<
@@ -162,7 +198,7 @@ export class BrowserService implements Disposable {
     logger.trace({ selector });
 
     const page = await this._getPage();
-    await page.locator(selector).wait();
+    await page.waitForSelector(selector);
     logger.debug('waited for elements');
 
     const elementHandles = await page.$$(selector);

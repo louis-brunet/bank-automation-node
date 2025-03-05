@@ -12,6 +12,7 @@ import {
   LoggerService,
 } from '../infra';
 import { DigitRecognitionService } from '../services';
+import { CaisseDEpargneAdapterInvalidCredentialError } from './errors';
 
 export class CaisseDEpargnePasswordParseIntError extends Error {
   constructor(passwordChar: string) {
@@ -33,17 +34,20 @@ export class CaisseDEpargneAdapter {
     this.logger = this.loggerService.getLogger(CaisseDEpargneAdapter.name);
   }
 
-  async getCheckingAccountBalance() {
+  async getCheckingAccountBalance(): Promise<number> {
     const logger = this.loggerService.getChild(
       this.logger,
       this.getCheckingAccountBalance.name,
     );
     logger.trace('called');
-
     await this.login();
-
-    logger.warn('TODO');
-    return -1;
+    const balances = await this._getAccountBalanceLoggedIn([
+      this.config.checkingAccount,
+    ]);
+    const checkingAccountBalance = balances[this.config.checkingAccount];
+    assert.ok(checkingAccountBalance !== undefined);
+    logger.debug({ checkingAccountBalance });
+    return checkingAccountBalance;
   }
 
   private async login() {
@@ -105,49 +109,85 @@ export class CaisseDEpargneAdapter {
     logger.debug('clicking password submit');
     await this.browserService.clickElementById('p-password-btn-submit');
 
-    // TODO: handle incorrect username/password
+    const isPasswordFailed = await this.browserService.isVisible(
+      'as-password-failed',
+      {
+        timeoutMs: 2_000,
+      },
+    );
+    if (isPasswordFailed) {
+      throw new CaisseDEpargneAdapterInvalidCredentialError();
+    }
 
-    logger.debug('waiting for MFA dialog to disappear');
+    logger.info(
+      `waiting ${this.config.mfaWaitTimeoutMillisecons.toString(10)}ms for MFA dialog to disappear`,
+    );
     await this.browserService.waitForElementToDisappear(
       '#m-identifier-cloudcard-btn-fallback',
+      { timeoutMs: this.config.mfaWaitTimeoutMillisecons },
     );
-    logger.info('Could not find MFA dialog button, continuing');
+    logger.info('could not find MFA dialog button, continuing');
+  }
 
-    const sleepMs = 3_000;
+  private async _getAccountBalanceLoggedIn<Ids extends string>(
+    accountIds: Ids[],
+  ): Promise<Record<Ids, number>> {
+    const logger = this.loggerService.getChild(
+      this.logger,
+      this._getAccountBalanceLoggedIn.name,
+    );
+    logger.trace({ accountIds });
+
+    const sleepMs = 5_000;
     await new Promise((resolve) => {
       setTimeout(resolve, sleepMs);
     });
     throw new Error('todo');
 
-    // remaining_password = self.config.account_password
+    // TODO: filter account tiles to find the one with the id, find and parse
+    // the corresponding balance
+
+    //     account_tiles = await self.browser_service.wait_for_elements(
+    //         by=By.CSS_SELECTOR,
+    //         value="compte-contract-tile",
+    //     )
     //
-    // while remaining_password != "":
-    //     try:
-    //         next_char = int(remaining_password[0])
-    //     except ValueError:
-    //         raise PasswordParseError()
-    //     if next_char < 0 or next_char > 9:
-    //         raise PasswordParseError()
+    //     logger.debug(f"found account labels: {account_tiles}")
     //
-    //     button = ordered_buttons[next_char]
-    //     button.click()
-    //     remaining_password = remaining_password[1:]
+    //     account_balances = {}
     //
-    // logger.debug("submit password")
-    // password_submit_button = self.browser_service.find_element_by_id(
-    //     id="p-password-btn-submit"
-    // )
-    // password_submit_button.click()
+    //     for account_tile in account_tiles:
+    //         account_tile_id_p = account_tile.find_element(
+    //             by=By.CSS_SELECTOR,
+    //             value="p[data-e2e=account-label]+p",
+    //         )
+    //         account_tile_id = account_tile_id_p.text.strip()
+    //         if account_tile_id in accounts.keys():
+    //             logger.debug(
+    //                 f"found account tile for account with id: {account_tile_id}"
+    //             )
+    //             balance_spans = account_tile.find_elements(
+    //                 by=By.CSS_SELECTOR,
+    //                 value="compte-ui-balance[data-e2e=compte-balance-contract] .balance span",
+    //             )
+    //             expected_currency_suffix = accounts[account_tile_id].currency
+    //             assert len(balance_spans) == 2
+    //             assert balance_spans[1].text.strip()[-1] == expected_currency_suffix
     //
-    // time.sleep(2)  # TODO: remove sleep
+    //             balance = self._get_balance_from_raw_parts(
+    //                 [span.text for span in balance_spans]
+    //             )
+    //             logger.debug(
+    //                 f"account balance for account ID {account_tile_id} is: {balance}"
+    //             )
     //
-    // logger.debug(f"URL: {self.browser_service.get_current_url()}")
+    //             account_balances[account_tile_id] = balance
     //
-    // await self.browser_service.wait_for_element_to_disappear(
-    //     by=By.ID, value="m-identifier-cloudcard-btn-fallback"
-    // )
+    //     for expected_key in accounts.keys():
+    //         if expected_key not in account_balances:
+    //             raise CaisseDEpargneAccountNotFoundError(expected_key)
     //
-    // logger.info("Could not find MFA dialog button, continuing")
+    //     return account_balances
   }
 
   private async _getDigitFromButton(

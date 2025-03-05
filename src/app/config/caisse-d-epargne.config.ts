@@ -1,4 +1,4 @@
-import { InferType, object, string } from 'yup';
+import { InferType, number, object, string } from 'yup';
 import { Env } from './env';
 import { singleton } from 'tsyringe';
 
@@ -16,6 +16,11 @@ const envSchema = object({
     .optional()
     .min(1)
     .default('https://www.caisse-epargne.fr'),
+  CAISSE_D_EPARGNE_MFA_WAIT_TIMEOUT_MS: number()
+    .optional()
+    .integer()
+    .min(1)
+    .default(30_000),
 });
 export type CaisseDEpargneEnv = InferType<typeof envSchema>;
 
@@ -25,6 +30,7 @@ export class CaisseDEpargneConfig {
   public readonly accountPassword: string;
   public readonly checkingAccount: string;
   public readonly baseUrl: string;
+  public readonly mfaWaitTimeoutMillisecons: number;
 
   constructor(env: Env) {
     const validated: CaisseDEpargneEnv = env.validate(envSchema);
@@ -32,5 +38,7 @@ export class CaisseDEpargneConfig {
     this.accountPassword = validated.CAISSE_D_EPARGNE_ACCOUNT_PASSWORD;
     this.checkingAccount = validated.CAISSE_D_EPARGNE_CHECKING_ACCOUNT;
     this.baseUrl = validated.CAISSE_D_EPARGNE_BASE_URL;
+    this.mfaWaitTimeoutMillisecons =
+      validated.CAISSE_D_EPARGNE_MFA_WAIT_TIMEOUT_MS;
   }
 }
