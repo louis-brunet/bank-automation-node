@@ -20,7 +20,7 @@ const envSchema = object({
     .optional()
     .integer()
     .min(1)
-    .default(30_000),
+    .default(60_000), // 1 minute
 });
 export type CaisseDEpargneEnv = InferType<typeof envSchema>;
 

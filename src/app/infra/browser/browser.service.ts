@@ -154,6 +154,28 @@ export class BrowserService implements Disposable {
     await page.waitForSelector(selector, waitOptions);
   }
 
+  async findChild(element: BrowserServiceFoundElement, selector: string) {
+    const children = await this.findChildren(element, selector);
+    return children[0] ?? null;
+  }
+
+  async findChildren(
+    element: BrowserServiceFoundElement,
+    selector: string,
+  ): Promise<BrowserServiceFoundElement[]> {
+    const childHandles = await element.handle.$$(selector);
+    const elements = childHandles.map(
+      (handle) => new BrowserServiceFoundElement(handle),
+    );
+    return elements;
+  }
+
+  async getElementText(foundElement: BrowserServiceFoundElement) {
+    return await foundElement.handle.evaluate((element) => {
+      return element.textContent;
+    });
+  }
+
   private async _findElementById<
     Request extends BrowserServiceFindElementByIdRequest<CssProperty, Query>,
     CssProperty extends
@@ -323,7 +345,7 @@ export class BrowserService implements Disposable {
     assert.ok(this._page, 'could not find page');
     this._page.setDefaultTimeout(this.config.defaultTimeoutMilliseconds);
     this._page.setDefaultNavigationTimeout(
-      this.config.defaultTimeoutMilliseconds,
+      this.config.defaultNavigationTimeoutMilliseconds,
     );
     return this._page;
   }

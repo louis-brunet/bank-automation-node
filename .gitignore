@@ -18,3 +18,5 @@
 .eslintcache
 
 /*.traineddata
+
+.aider*

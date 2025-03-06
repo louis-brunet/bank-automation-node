@@ -12,7 +12,11 @@ import {
   LoggerService,
 } from '../infra';
 import { DigitRecognitionService } from '../services';
-import { CaisseDEpargneAdapterInvalidCredentialError } from './errors';
+import {
+  CaisseDEpargneAdapterBalanceNotFoundError,
+  CaisseDEpargneAdapterInvalidCredentialError,
+  CaisseDEpargneAdapterParseBalanceError,
+} from './errors';
 
 export class CaisseDEpargnePasswordParseIntError extends Error {
   constructor(passwordChar: string) {
@@ -129,65 +133,119 @@ export class CaisseDEpargneAdapter {
     logger.info('could not find MFA dialog button, continuing');
   }
 
-  private async _getAccountBalanceLoggedIn<Ids extends string>(
-    accountIds: Ids[],
-  ): Promise<Record<Ids, number>> {
+  private async _getAccountBalanceLoggedIn<AccountId extends string>(
+    accountIds: AccountId[],
+  ): Promise<Record<AccountId, number>> {
     const logger = this.loggerService.getChild(
       this.logger,
       this._getAccountBalanceLoggedIn.name,
     );
     logger.trace({ accountIds });
 
-    const sleepMs = 5_000;
-    await new Promise((resolve) => {
-      setTimeout(resolve, sleepMs);
+    await using accountTiles = await this.browserService.findElements({
+      by: BrowserServiceFindBy.SELECTOR,
+      query: 'compte-contract-tile',
     });
-    throw new Error('todo');
+    logger.debug(`found account labels: ${JSON.stringify(accountTiles)}`);
 
-    // TODO: filter account tiles to find the one with the id, find and parse
-    // the corresponding balance
+    const accountBalances = new Map<AccountId, number>();
+    for (const accountTile of accountTiles.elements) {
+      await using accountIdParagraph = await this.browserService.findChild(
+        accountTile,
+        'p[data-e2e=account-label]+p',
+      );
+      if (accountIdParagraph === null) {
+        logger.warn('could not find account ID paragraph in account tile');
+        continue;
+      }
 
-    //     account_tiles = await self.browser_service.wait_for_elements(
-    //         by=By.CSS_SELECTOR,
-    //         value="compte-contract-tile",
-    //     )
-    //
-    //     logger.debug(f"found account labels: {account_tiles}")
-    //
-    //     account_balances = {}
-    //
-    //     for account_tile in account_tiles:
-    //         account_tile_id_p = account_tile.find_element(
-    //             by=By.CSS_SELECTOR,
-    //             value="p[data-e2e=account-label]+p",
-    //         )
-    //         account_tile_id = account_tile_id_p.text.strip()
-    //         if account_tile_id in accounts.keys():
-    //             logger.debug(
-    //                 f"found account tile for account with id: {account_tile_id}"
-    //             )
-    //             balance_spans = account_tile.find_elements(
-    //                 by=By.CSS_SELECTOR,
-    //                 value="compte-ui-balance[data-e2e=compte-balance-contract] .balance span",
-    //             )
-    //             expected_currency_suffix = accounts[account_tile_id].currency
-    //             assert len(balance_spans) == 2
-    //             assert balance_spans[1].text.strip()[-1] == expected_currency_suffix
-    //
-    //             balance = self._get_balance_from_raw_parts(
-    //                 [span.text for span in balance_spans]
-    //             )
-    //             logger.debug(
-    //                 f"account balance for account ID {account_tile_id} is: {balance}"
-    //             )
-    //
-    //             account_balances[account_tile_id] = balance
-    //
-    //     for expected_key in accounts.keys():
-    //         if expected_key not in account_balances:
-    //             raise CaisseDEpargneAccountNotFoundError(expected_key)
-    //
-    //     return account_balances
+      // filter account tiles to find the one with the id, find and parse
+      // the corresponding balance
+
+      let accountTileId =
+        await this.browserService.getElementText(accountIdParagraph);
+      if (!accountTileId) {
+        logger.warn(
+          'could not find text inside account ID paragraph in account tile',
+        );
+        continue;
+      }
+      accountTileId = accountTileId.trim();
+
+      let isRequestedId = false;
+      for (const id of accountIds) {
+        if (accountTileId === id.trim()) {
+          isRequestedId = true;
+          break;
+        }
+      }
+
+      if (isRequestedId) {
+        logger.debug(`found requested ID '${accountTileId}'`);
+        const balanceSpans = await this.browserService.findChildren(
+          accountTile,
+          'compte-ui-balance[data-e2e=compte-balance-contract] .balance span',
+        );
+        await using balanceSpan1 = balanceSpans[0];
+        await using balanceSpan2 = balanceSpans[1];
+        if (!balanceSpan1 || !balanceSpan2) {
+          throw new CaisseDEpargneAdapterBalanceNotFoundError(accountTileId);
+        }
+
+        const balanceWholePartText =
+          await this.browserService.getElementText(balanceSpan1);
+        if (!balanceWholePartText) {
+          throw new CaisseDEpargneAdapterBalanceNotFoundError(accountTileId);
+        }
+
+        // strip currency suffix
+        const currencySymbol = '€';
+        const balanceDecimalPartText =
+          await this.browserService.getElementText(balanceSpan2);
+        if (!balanceDecimalPartText) {
+          throw new CaisseDEpargneAdapterBalanceNotFoundError(accountTileId);
+        }
+        if (
+          !balanceDecimalPartText.includes(currencySymbol) &&
+          !balanceWholePartText.includes(currencySymbol)
+        ) {
+          throw new CaisseDEpargneAdapterParseBalanceError(accountTileId);
+        }
+
+        logger.debug({ balanceWholePartText, balanceDecimalPartText });
+        const notNumberRegex = /[^0-9,.+-]/g;
+        const balanceText =
+          balanceWholePartText
+            .replaceAll(notNumberRegex, '')
+            .replace(',', '.') +
+          balanceDecimalPartText
+            .replaceAll(notNumberRegex, '')
+            .replace(',', '.');
+
+        const accountBalance = Number.parseFloat(balanceText);
+        logger.debug({ balanceText, accountBalance });
+        if (!Number.isFinite(accountBalance)) {
+          throw new CaisseDEpargneAdapterParseBalanceError(
+            accountTileId,
+            balanceText,
+          );
+        }
+        accountBalances.set(accountTileId as AccountId, accountBalance);
+      } else {
+        logger.debug(`'${accountTileId}' is not a requested ID`);
+      }
+    }
+
+    const balances = {} as Record<AccountId, number>;
+    return accountIds.reduce((balances, accountId) => {
+      const balance = accountBalances.get(accountId);
+      if (balance === undefined) {
+        throw new CaisseDEpargneAdapterBalanceNotFoundError(accountId);
+      }
+      balances[accountId] = balance;
+      logger.debug(`'${accountId}' -> ${balance.toString(10)}`);
+      return balances;
+    }, balances);
   }
 
   private async _getDigitFromButton(
@@ -235,142 +293,3 @@ export class CaisseDEpargneAdapter {
     );
   }
 }
-
-//     logger = self.logger.getChild(self.get_account_balance.__name__)
-//     logger.debug(f"starting login flow for account ids: {accounts}")
-//
-//     self.browser_service.get(
-//         "https://www.caisse-epargne.fr/banque-a-distance/acceder-compte/"
-//     )
-//     no_consent = self.browser_service.find_element_by_id(id="no_consent_btn")
-//     no_consent.click()
-//     self.browser_service.get(
-//         "https://www.caisse-epargne.fr/se-connecter/sso?service=dei"
-//     )
-//     identifier_input = self.browser_service.find_element_by_id(
-//         id="input-identifier"
-//     )
-//     identifier_input.send_keys(self.config.account_id)
-//     identifier_input.send_keys("\n")
-//
-//     time.sleep(2)  # TODO: remove sleep
-//
-//     logger.debug("sort password buttons")
-//     buttons = self.browser_service.find_elements_by_css_selector(
-//         selector="button.keyboard-button"
-//     )
-//     ordered_buttons = self._sort_buttons(buttons)
-//
-//     logger.debug("input configured password using sorted numeric buttons")
-//     remaining_password = self.config.account_password
-//
-//     while remaining_password != "":
-//         try:
-//             next_char = int(remaining_password[0])
-//         except ValueError:
-//             raise PasswordParseError()
-//         if next_char < 0 or next_char > 9:
-//             raise PasswordParseError()
-//
-//         button = ordered_buttons[next_char]
-//         button.click()
-//         remaining_password = remaining_password[1:]
-//
-//     logger.debug("submit password")
-//     password_submit_button = self.browser_service.find_element_by_id(
-//         id="p-password-btn-submit"
-//     )
-//     password_submit_button.click()
-//
-//     time.sleep(2)  # TODO: remove sleep
-//
-//     logger.debug(f"URL: {self.browser_service.get_current_url()}")
-//
-//     await self.browser_service.wait_for_element_to_disappear(
-//         by=By.ID, value="m-identifier-cloudcard-btn-fallback"
-//     )
-//
-//     logger.info("Could not find MFA dialog button, continuing")
-//
-//     account_tiles = await self.browser_service.wait_for_elements(
-//         by=By.CSS_SELECTOR,
-//         value="compte-contract-tile",
-//     )
-//
-//     logger.debug(f"found account labels: {account_tiles}")
-//
-//     account_balances = {}
-//
-//     for account_tile in account_tiles:
-//         account_tile_id_p = account_tile.find_element(
-//             by=By.CSS_SELECTOR,
-//             value="p[data-e2e=account-label]+p",
-//         )
-//         account_tile_id = account_tile_id_p.text.strip()
-//         if account_tile_id in accounts.keys():
-//             logger.debug(
-//                 f"found account tile for account with id: {account_tile_id}"
-//             )
-//             balance_spans = account_tile.find_elements(
-//                 by=By.CSS_SELECTOR,
-//                 value="compte-ui-balance[data-e2e=compte-balance-contract] .balance span",
-//             )
-//             expected_currency_suffix = accounts[account_tile_id].currency
-//             assert len(balance_spans) == 2
-//             assert balance_spans[1].text.strip()[-1] == expected_currency_suffix
-//
-//             balance = self._get_balance_from_raw_parts(
-//                 [span.text for span in balance_spans]
-//             )
-//             logger.debug(
-//                 f"account balance for account ID {account_tile_id} is: {balance}"
-//             )
-//
-//             account_balances[account_tile_id] = balance
-//
-//     for expected_key in accounts.keys():
-//         if expected_key not in account_balances:
-//             raise CaisseDEpargneAccountNotFoundError(expected_key)
-//
-//     return account_balances
-//
-// def _get_base64_from_background_image(self, background_image: str) -> str:
-//     matched = re.search(r'url\("data:image/png;base64,(.*)"\)', background_image)
-//     if matched:
-//         return matched.group(1)
-//     raise ValueError(
-//         f"could not get base64 from background image value: {background_image}"
-//     )
-//
-// def _get_button_value(self, background_image: str) -> int | None:
-//     image_base64 = self._get_base64_from_background_image(background_image)
-//     button_value = self.digit_recognition_service.recognize_digit_from_base64(
-//         image_base64
-//     )
-//     return button_value
-//
-// def _sort_buttons(self, buttons: list[WebElement]) -> list[WebElement]:
-//     button_values: list[tuple[int, WebElement]] = []
-//
-//     for button in buttons:
-//         background_image = button.value_of_css_property("background-image")
-//         button_value = self._get_button_value(background_image)
-//         if button_value is None:
-//             raise PasswordOcrError(background_image)
-//         button_values.append((button_value, button))
-//
-//     ordered_buttons = [
-//         button for _, button in sorted(button_values, key=lambda x: x[0])
-//     ]
-//     return ordered_buttons
-//
-// def _get_balance_from_raw_parts(self, balance_span_contents: list[str]) -> float:
-//     logger = self.logger.getChild(self._get_balance_from_raw_parts.__name__)
-//     [whole_part, decimal_part] = [
-//         re.sub(r"[^0-9,.-]", "", text) for text in balance_span_contents
-//     ]
-//     logger.debug(f"whole_part='{whole_part}', decimal_part='{decimal_part}'")
-//
-//     balance = float(f"{whole_part}{decimal_part.replace(',', '.')}")
-//     return balance
-//
