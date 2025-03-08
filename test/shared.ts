@@ -176,27 +176,26 @@ export function createMockClass<
   const getErrorMessage = (prop: string | symbol) =>
     `mocked ${className} does not implement '${String(prop)}')`;
 
-  // let key: keyof typeof mockImplementations;
-  // for (key in mockImplementations) {
-  //   const keyOfFunction = key as FunctionPropertyNames<TInstance>;
-  //   if (typeof target[keyOfFunction] === 'function') {
-  //     const implementation = mockImplementations[keyOfFunction];
-  //     // const implementation = mockImplementations[key];
-  //     // const implementation = mockImplementations[key];
-  //     // mockMethod<TInstance, FunctionPropertyNames<TInstance>>(
-  //     mockMethod(
-  //       clazz,
-  //       keyOfFunction,
-  //       // mockImplementations[key] as TInstance[FunctionPropertyNames<TInstance>],
-  //       implementation,
-  //     );
-  //   }
-  // }
-
   const handler: ProxyHandler<ExtractFunctions<TInstance>> = {
     get: (target, prop) => {
+      const error = new Error(getErrorMessage(prop));
+
+      // Special case for Symbol.toStringTag and other built-in symbols
+      if (typeof prop === 'symbol') {
+        if (prop === Symbol.toStringTag) {
+          return className;
+        }
+        if (prop === Symbol.dispose) {
+          return;
+        }
+        if (prop === Symbol.asyncDispose) {
+          return async () => {};
+        }
+        throw error;
+      }
+
       // Return mocked function if it exists
-      if (target[prop] && typeof target[prop] === 'function') {
+      if (target[prop]) {
         const asMock = target[prop] as Partial<
           Mock<(...args: unknown[]) => unknown>
         >;
@@ -208,21 +207,6 @@ export function createMockClass<
         }
         // if (prop in mockImplementations) {
         //   return mockImplementations[prop as keyof typeof mockImplementations];
-        // }
-      }
-
-      const error = new Error(getErrorMessage(prop));
-
-      // Special case for Symbol.toStringTag and other built-in symbols
-      if (typeof prop === 'symbol') {
-        if (prop === Symbol.toStringTag) {
-          return className;
-        }
-        // if (prop === Symbol.dispose) {
-        //   return;
-        // }
-        // if (prop === Symbol.asyncDispose) {
-        //   return async () => {};
         // }
         throw error;
       }
@@ -243,8 +227,10 @@ export function createMockClass<
         return target[prop] as unknown;
       }
 
-      // For everything else, throw an error
-      throw error;
+      return target[prop] as unknown;
+
+      // // For everything else, throw an error
+      // throw error;
     },
 
     // // Handle property setting
