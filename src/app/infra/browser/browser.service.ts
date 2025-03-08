@@ -9,7 +9,6 @@ import puppeteer, {
 } from 'puppeteer';
 import { Disposable, Lifecycle, scoped } from 'tsyringe';
 import { BrowserConfig } from '../../config';
-import { LoggerService } from '../logger.service';
 import {
   BrowserServiceFindBy,
   BrowserServiceFindElementByIdRequest,
@@ -21,6 +20,7 @@ import {
   ClassProperties,
   RequestedCssProperty,
 } from './types';
+import { LoggerService } from '../logger';
 
 @scoped(Lifecycle.ContainerScoped)
 export class BrowserService implements Disposable {

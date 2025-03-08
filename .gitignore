@@ -20,3 +20,6 @@
 /*.traineddata
 
 .aider*
+
+credentials.json
+token.json

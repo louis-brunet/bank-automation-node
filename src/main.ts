@@ -1,7 +1,7 @@
 import '@abraham/reflection';
 import { container, DependencyContainer } from 'tsyringe';
 import {
-  CaisseDEpargneAdapter,
+  BankAutomationService,
   LoggerService,
   PROCESS_ENV_SYMBOL,
 } from './app';
@@ -16,15 +16,13 @@ async function main() {
   const loggerService = container.resolve(LoggerService);
   const logger = loggerService.getLogger(main.name);
   try {
-    const adapter = container.resolve(CaisseDEpargneAdapter);
-    const balance = await adapter.getCheckingAccountBalance();
-    logger.info({ balance });
+    const service = container.resolve(BankAutomationService);
+    await service.updateAccountBalances();
   } catch (e) {
     logger.error(e);
   } finally {
     await container.dispose();
     logger.info('Disposable instances disposed');
-    // process.exit(0);
   }
 }
 

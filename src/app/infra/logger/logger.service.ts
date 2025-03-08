@@ -1,7 +1,7 @@
 import pino, { Logger } from 'pino';
 import pinoPretty from 'pino-pretty';
 import { Lifecycle, scoped } from 'tsyringe';
-import { LoggerConfig } from '../config';
+import { LoggerConfig } from '../../config';
 
 @scoped(Lifecycle.ContainerScoped)
 export class LoggerService {

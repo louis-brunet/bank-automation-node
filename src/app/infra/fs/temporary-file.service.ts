@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { Logger } from 'pino';
 import { Lifecycle, scoped } from 'tsyringe';
 import { AppConfig } from '../../config';
-import { LoggerService } from '../logger.service';
+import { LoggerService } from '../logger';
 
 export type TemporaryFileServiceFunction<Result> = (
   fileName: string,
