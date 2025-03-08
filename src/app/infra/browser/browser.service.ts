@@ -7,7 +7,7 @@ import puppeteer, {
   TimeoutError,
   WaitForSelectorOptions,
 } from 'puppeteer';
-import { Disposable, injectable } from 'tsyringe';
+import { Disposable, Lifecycle, scoped } from 'tsyringe';
 import { BrowserConfig } from '../../config';
 import { LoggerService } from '../logger.service';
 import {
@@ -22,7 +22,7 @@ import {
   RequestedCssProperty,
 } from './types';
 
-@injectable()
+@scoped(Lifecycle.ContainerScoped)
 export class BrowserService implements Disposable {
   private _browser: Browser | undefined;
   private _page: Page | undefined;

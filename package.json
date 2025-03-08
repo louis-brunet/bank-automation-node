@@ -13,8 +13,9 @@
     "style:fix": "yarn run style --write",
     "build": "tsc",
     "start": "node --env-file=.env --enable-source-maps dist/main.js",
-    "test": "TS_NODE_PROJECT=test/tsconfig.json node --require ts-node/register --test test/**/*.spec.ts",
-    "test:debug": "TS_NODE_PROJECT=test/tsconfig.json node --inspect --require ts-node/register --test test/**/*.spec.ts",
+    "test": "yarn run test:_base test/**/*.spec.ts",
+    "test:debug": "yarn run test:_base --inspect test/**/*.spec.ts",
+    "test:_base": "TS_NODE_PROJECT=test/tsconfig.json node --experimental-test-coverage --test-coverage-include='src/app/**/*' --test-coverage-branches=80 --test-coverage-functions=80 --test-coverage-lines=80 --enable-source-maps --require ts-node/register --test",
     "postinstall": "husky install",
     "prepublishOnly": "pinst --disable",
     "postpublish": "pinst --enable"

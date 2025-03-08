@@ -51,34 +51,6 @@ export type BrowserServiceFindElementRequest<
   | BrowserServiceFindElementByIdRequest<CssProperty, Query>
   | BrowserServiceFindElementBySelectorRequest<CssProperty, Query>;
 
-// export interface BrowserServiceFindElementRequest {
-//   by: BrowserServiceFindByType;
-//   query: string;
-//   options?: BrowserServiceFindElementRequestOptions;
-// }
-//
-// export interface BrowserServiceFindElementByIdRequest
-//   extends BrowserServiceFindElementRequest {
-//   by: 'id';
-// }
-//
-// export interface BrowserServiceFindElementBySelectorRequest
-//   extends BrowserServiceFindElementRequest {
-//   by: 'selector';
-// }
-
-// export type BrowserServiceFoundById = {
-//   by: typeof BrowserServiceFindBy.ID;
-//   id: string;
-// };
-//
-// export type BrowserServiceFoundBySelector = {
-//   by: typeof BrowserServiceFindBy.SELECTOR;
-//   selector: string;
-//   index: number;
-//   id?: string;
-// };
-
 export class BrowserServiceFoundElement<CssProperty extends string = string>
   implements AsyncDisposable
 {
@@ -90,12 +62,10 @@ export class BrowserServiceFoundElement<CssProperty extends string = string>
     public readonly handle: ElementHandle,
     public style?: Record<CssProperty, string>,
   ) {}
+
   async [Symbol.asyncDispose]() {
     await this.handle.dispose();
   }
-  // foundBy: BrowserServiceFoundById | BrowserServiceFoundBySelector;
-  // handle: ElementHandle;
-  // style?: Record<CssProperty, string>;
 }
 
 export class BrowserServiceFoundElements<CssProperty extends string = string>
@@ -127,16 +97,6 @@ export type BrowserServiceFindElementResponse<
 > = Request['by'] extends 'id'
   ? BrowserServiceFoundElement<CssProperty> | null
   : BrowserServiceFoundElements<CssProperty>;
-// export type BrowserServiceFindElementResponse<
-//   Request extends BrowserServiceFindElementRequest,
-// > = Request extends BrowserServiceFindElementByIdRequest
-//   ? BrowserServiceFoundElement | null
-//   : BrowserServiceFoundElement[];
-// > = Request extends BrowserServiceFindElementByIdRequest
-//   ? BrowserServiceFoundElement | null
-//   : Request extends BrowserServiceFindElementBySelectorRequest
-//     ? BrowserServiceFoundElement[]
-//     : never;
 
 type Function<Args = unknown, Return = unknown> = (...args: Args[]) => Return;
 export type ClassProperties<T> = {

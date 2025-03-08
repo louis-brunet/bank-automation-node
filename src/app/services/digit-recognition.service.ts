@@ -5,14 +5,14 @@ import Tesseract, {
   createWorker,
   Scheduler,
 } from 'tesseract.js';
-import { Disposable, singleton } from 'tsyringe';
+import { Disposable, Lifecycle, scoped } from 'tsyringe';
 import { LoggerService, TemporaryFileService } from '../infra';
 
 const MAP_CHARACHER_TO_DIGIT: Record<string, string> = {
   '|': '1',
 };
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class DigitRecognitionService implements Disposable {
   private readonly logger: Logger;
   private scheduler: Scheduler | undefined = undefined;

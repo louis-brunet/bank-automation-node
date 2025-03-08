@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { singleton } from 'tsyringe';
+import { Lifecycle, scoped } from 'tsyringe';
 import {
   CAISSE_D_EPARGNE_PASSWORD_MAX_LENGTH,
   CAISSE_D_EPARGNE_PASSWORD_MIN_LENGTH,
@@ -16,16 +16,10 @@ import {
   CaisseDEpargneAdapterBalanceNotFoundError,
   CaisseDEpargneAdapterInvalidCredentialError,
   CaisseDEpargneAdapterParseBalanceError,
+  CaisseDEpargnePasswordParseIntError,
 } from './errors';
 
-export class CaisseDEpargnePasswordParseIntError extends Error {
-  constructor(passwordChar: string) {
-    assert.equal(passwordChar.length, 1);
-    super(`could not parse password character '${passwordChar}' as an integer`);
-  }
-}
-
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class CaisseDEpargneAdapter {
   private readonly logger;
 

@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Logger } from 'pino';
-import { singleton } from 'tsyringe';
+import { Lifecycle, scoped } from 'tsyringe';
 import { AppConfig } from '../../config';
 import { LoggerService } from '../logger.service';
 
@@ -31,7 +31,7 @@ class TemporaryFile implements AsyncDisposable {
   }
 }
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class TemporaryFileService {
   private readonly logger: Logger;
   constructor(

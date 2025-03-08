@@ -1,9 +1,9 @@
 import pino, { Logger } from 'pino';
 import pinoPretty from 'pino-pretty';
-import { singleton } from 'tsyringe';
+import { Lifecycle, scoped } from 'tsyringe';
 import { LoggerConfig } from '../config';
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class LoggerService {
   private readonly logger: Logger;
 
