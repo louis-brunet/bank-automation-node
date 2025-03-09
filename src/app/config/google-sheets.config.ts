@@ -14,7 +14,7 @@ const envSchema = object({
   )
     .required()
     .min(1)
-    .default(['https://www.googleapis.com/auth/spreadsheets.readonly']),
+    .default(['https://www.googleapis.com/auth/spreadsheets']),
   GOOGLE_SHEETS_CREDENTIALS_PATH: string().required(),
   GOOGLE_SHEETS_TOKEN_PATH: string().required(),
   GOOGLE_SHEETS_VERSION: string<GoogleSheetsVersion>()

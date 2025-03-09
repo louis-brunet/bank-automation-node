@@ -5,6 +5,7 @@ import {
   SpreadsheetService,
   SpreadsheetUpdateCellRequest,
 } from '../infra';
+import { StorageConfig } from '../config/storage.config';
 
 @scoped(Lifecycle.ContainerScoped)
 export class StorageService {
@@ -13,8 +14,7 @@ export class StorageService {
   constructor(
     private readonly loggerService: LoggerService,
     private readonly spreadsheetService: SpreadsheetService,
-    // TODO: how/where to get the precide spreadsheet id+location?
-    // private readonly storageConfig: StorageConfig,
+    private readonly config: StorageConfig,
   ) {
     this.logger = this.loggerService.getLogger(StorageService.name);
     this.logger.trace('constructor called');
@@ -27,15 +27,16 @@ export class StorageService {
     );
     logger.trace({ balance });
 
-    await Promise.reject(new Error('todo'));
-
     const request: SpreadsheetUpdateCellRequest = {
-      provider: 'google-sheets',
-      spreadsheetId: '',
-      cell: { row: '', column: '' },
       value: balance,
+      provider: 'google-sheets',
+      spreadsheetId: this.config.spreadsheetId,
+      cell: {
+        row: this.config.checkingAccountCellRow,
+        column: this.config.checkingAccountCellColumn,
+        sheet: this.config.checkingAccountCellSheet,
+      },
     };
     await this.spreadsheetService.updateCell(request);
-    await Promise.reject(new Error('todo'));
   }
 }

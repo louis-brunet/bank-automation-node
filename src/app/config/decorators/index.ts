@@ -1,1 +1,1 @@
-export * from './env-property.decorator';
+export * from './env.property.decorator';

@@ -21,5 +21,4 @@
 
 .aider*
 
-credentials.json
-token.json
+/gcp-*.json

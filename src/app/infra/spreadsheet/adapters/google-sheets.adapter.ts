@@ -30,17 +30,28 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
   override async updateCell(
     request: SpreadsheetUpdateCellRequest,
   ): Promise<void> {
+    const logger = this.loggerService.getChild(
+      this.logger,
+      this.updateCell.name,
+    );
+    logger.trace({ request });
     const sheets = await this._getClient();
     const range = this._mapRequestedCellToRange(request.cell);
+    const spreadsheetId = request.spreadsheetId;
+    const values = [[request.value]];
     // const previousValue = await sheets.spreadsheets.values.get({
     //   spreadsheetId: request.spreadsheetId,
     //   range,
     // });
-
-    await Promise.reject(new Error('todo'));
-
+    // NOTE: see docs https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
     const result = await sheets.spreadsheets.values.update({
-      // .....
+      spreadsheetId,
+      range,
+      valueInputOption: 'USER_ENTERED', // either USER_ENTERED or RAW - https://developers.google.com/sheets/api/reference/rest/v4/ValueInputOption
+      requestBody: {
+        range,
+        values,
+      },
     });
     const expectedUpdatedCellCount = 1;
     const updatedCells = result.data.updatedCells;
@@ -51,6 +62,9 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
     ) {
       throw new GoogleSheetsUpdateCellError(range, request.value, updatedCells);
     }
+    logger.debug(
+      `successfully wrote value '${request.value.toString(10)}' to spreadsheet '${spreadsheetId}' at '${range}'`,
+    );
   }
 
   private async _getClient() {
@@ -79,12 +93,16 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
    */
   private async _saveCredentials(clientCredentials: Credentials) {
     const credentials = await this._parseCredentials();
-    const key = credentials.installed || credentials.web;
-    assert.ok(key);
+    const client_id =
+      credentials.installed?.client_id ?? credentials.web?.client_id;
+    const client_secret =
+      credentials.installed?.client_secret ?? credentials.web?.client_secret;
+    // const key = credentials.installed || credentials.web;
+    // assert.ok(key);
     const payload = JSON.stringify({
       type: 'authorized_user',
-      client_id: key.client_id,
-      client_secret: key.client_secret,
+      client_id,
+      client_secret,
       refresh_token: clientCredentials.refresh_token,
     });
     await fs.writeFile(this.config.tokenPath, payload);
@@ -93,8 +111,8 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
   private async _parseCredentials() {
     const content = await fs.readFile(this.config.credentialsPath);
     const keysSchema = object({
-      client_id: string().required(),
-      client_secret: string().required(),
+      client_id: string().optional(),
+      client_secret: string().optional(),
     });
     const schema = object({
       installed: keysSchema.optional(),
@@ -108,7 +126,7 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
   }
 
   private _mapRequestedCellToRange(cell: SpreadsheetCell) {
-    const { row, column } = cell;
-    return `${column}${row}`;
+    const { row, column, sheet } = cell;
+    return `'${sheet}'!${column}${row}`;
   }
 }
