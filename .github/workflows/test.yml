@@ -12,6 +12,8 @@ jobs:
         node-version: [22.14]
     steps:
       - uses: actions/checkout@v4.1.7
+      - name: Enable corepack
+        run: corepack enable
       - name: Node.js ${{ matrix.node-version }} (yarn)
         uses: actions/setup-node@v4
         id: yarn-cache
