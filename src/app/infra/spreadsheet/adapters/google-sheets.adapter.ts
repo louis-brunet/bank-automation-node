@@ -1,6 +1,6 @@
 import { authenticate } from '@google-cloud/local-auth';
 import { Credentials, OAuth2Client } from 'google-auth-library';
-import { google } from 'googleapis';
+import { google, sheets_v4 } from 'googleapis';
 import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import { Logger } from 'pino';
@@ -16,6 +16,7 @@ import { AbstractSpreadsheetAdapter } from './abstract-spreadsheet.adapter';
 export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
   private readonly logger: Logger;
   private client: OAuth2Client | undefined = undefined;
+  private sheets: sheets_v4.Sheets | undefined = undefined;
 
   constructor(
     private readonly loggerService: LoggerService,
@@ -68,14 +69,18 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
   }
 
   private async _getClient() {
-    await this._authorize();
-    assert.ok(this.client);
+    if (!this.sheets) {
+      if (!this.client) {
+        await this._authorize();
+        assert.ok(this.client);
+      }
+      this.sheets = google.sheets({
+        version: this.config.version,
+        auth: this.client,
+      });
+    }
 
-    const sheets = google.sheets({
-      version: this.config.version,
-      auth: this.client,
-    });
-    return sheets;
+    return this.sheets;
   }
 
   private async _authorize() {

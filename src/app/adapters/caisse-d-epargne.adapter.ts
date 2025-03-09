@@ -150,9 +150,9 @@ export class CaisseDEpargneAdapter {
     );
     logger.trace({ accountIds });
 
-    await this.browserService.get(
-      `${this.config.baseUrl}/espace-client/compte`,
-    );
+    // await this.browserService.get(
+    //   `${this.config.baseUrl}/espace-client/compte`,
+    // );
 
     await using accountTiles = await this.browserService.findElements({
       by: BrowserServiceFindBy.SELECTOR,
