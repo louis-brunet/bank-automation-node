@@ -39,13 +39,10 @@ export class DigitRecognitionService implements Disposable {
 
     try {
       const imageBytes = Buffer.from(base64Image, 'base64');
-      const result = await this.temporaryFileService.useTemporaryFile(
-        async (tempFilePath) => {
-          await fs.writeFile(tempFilePath, imageBytes);
-          const result = await this.recognize(tempFilePath, {});
-          return result;
-        },
-      );
+      await using temporaryFile =
+        await this.temporaryFileService.createTemporaryFile();
+      await fs.writeFile(temporaryFile.fileName, imageBytes);
+      const result = await this.recognize(temporaryFile.fileName, {});
       logger.debug({ result });
       const resultText = result.data.text;
       return this.getDigitFromResultString(resultText);

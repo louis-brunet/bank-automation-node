@@ -48,19 +48,21 @@ void createUnitTestSuite(DigitRecognitionService, async (context) => {
     );
 
     await it('handles error with temporary file', async (t: TestContext) => {
-      const useTemporaryFileMock = t.mock.method(
+      const createTemporaryFileMock = t.mock.method(
         TemporaryFileService.prototype,
-        'useTemporaryFile',
+        'createTemporaryFile',
       );
-      useTemporaryFileMock.mock.mockImplementation(() => {
-        throw new Error('some error');
+      const error = new Error('some error');
+      createTemporaryFileMock.mock.mockImplementation(() => {
+        throw error;
       });
       const base64 = 'fakebase64';
       const service = context.getTestClass();
       const result = await service.recognizeDigitFromBase64(base64);
 
       t.assert.strictEqual(result, null);
-      t.assert.strictEqual(useTemporaryFileMock.mock.callCount(), 1);
+      t.assert.strictEqual(createTemporaryFileMock.mock.callCount(), 1);
+      t.assert.strictEqual(createTemporaryFileMock.mock.calls[0]?.error, error);
     });
   });
 });
