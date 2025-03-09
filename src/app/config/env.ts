@@ -1,9 +1,9 @@
-import { inject, singleton } from 'tsyringe';
+import { inject, Lifecycle, scoped } from 'tsyringe';
 import { ObjectSchema } from 'yup';
 
 export const PROCESS_ENV_SYMBOL = Symbol('process.env');
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class Env {
   private readonly _env: Record<string, unknown>;
 

@@ -9,7 +9,7 @@ import {
   TestContext,
 } from 'node:test';
 import { container, DependencyContainer } from 'tsyringe';
-import { PROCESS_ENV_SYMBOL } from '../src';
+import { ClassConstructor, PROCESS_ENV_SYMBOL } from '../src';
 
 type FunctionPropertyNames<T> = {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
@@ -107,14 +107,9 @@ export type UnitTestSuiteContext<TestClass> = {
   getTestClass: () => TestClass;
 };
 
-// type Class<T> = typeof T;
-type Class<T> = {
-  new (...args): T;
-};
-
-export async function createUnitTestSuite<TestClass>(
-  clazz: Class<TestClass>,
-  suite: (context: UnitTestSuiteContext<TestClass>) => Promise<void> | void,
+export async function createUnitTestSuite<TTestClass>(
+  clazz: ClassConstructor<TTestClass>,
+  suite: (context: UnitTestSuiteContext<TTestClass>) => Promise<void> | void,
   options?: { processEnv?: Record<string, unknown> },
 ) {
   await describe(clazz.name, {}, async (_context) => {
@@ -131,7 +126,7 @@ export async function createUnitTestSuite<TestClass>(
     // }
 
     const initialChildContainer = initContainer();
-    const suiteContext: UnitTestSuiteContext<TestClass> = {
+    const suiteContext: UnitTestSuiteContext<TTestClass> = {
       container: initialChildContainer,
 
       getTestClass() {
@@ -167,7 +162,7 @@ export function createMockClass<
   TInstance extends object,
   // TMockImplementations extends MockImplementations<TInstance>,
 >(
-  clazz: Class<TInstance>,
+  clazz: ClassConstructor<TInstance>,
   // mockImplementations: TMockImplementations,
   // mockImplementations: MockImplementations<TInstance>,
 ): CreateMockClassResult<TInstance> {
@@ -253,7 +248,7 @@ export function createMockClass<
 
 export function registerMock<TInstance extends object>(
   container: DependencyContainer,
-  clazz: Class<TInstance>,
+  clazz: ClassConstructor<TInstance>,
   // implementations: MockImplementations<TInstance>,
 ) {
   container.register(clazz, {
@@ -270,7 +265,7 @@ export function mockMethod<
   TMethodName extends
     FunctionPropertyNames<TInstance> = FunctionPropertyNames<TInstance>,
 >(
-  clazz: Class<TInstance>,
+  clazz: ClassConstructor<TInstance>,
   methodName: TMethodName,
   implementation?: TInstance[TMethodName],
 ) {

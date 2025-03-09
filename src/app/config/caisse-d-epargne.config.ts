@@ -1,6 +1,6 @@
+import { Lifecycle, scoped } from 'tsyringe';
 import { InferType, number, object, string } from 'yup';
 import { Env } from './env';
-import { singleton } from 'tsyringe';
 
 export const CAISSE_D_EPARGNE_PASSWORD_MIN_LENGTH = 8;
 export const CAISSE_D_EPARGNE_PASSWORD_MAX_LENGTH = 8;
@@ -24,7 +24,7 @@ const envSchema = object({
 });
 export type CaisseDEpargneEnv = InferType<typeof envSchema>;
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class CaisseDEpargneConfig {
   public readonly accountId: string;
   public readonly accountPassword: string;

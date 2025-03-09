@@ -1,5 +1,6 @@
 import '@abraham/reflection';
-import { container, DependencyContainer } from 'tsyringe';
+
+import { container as globalContainer, DependencyContainer } from 'tsyringe';
 import {
   BankAutomationService,
   LoggerService,
@@ -11,6 +12,7 @@ function configureDependencies(container: DependencyContainer) {
 }
 
 async function main() {
+  const container = globalContainer.createChildContainer();
   configureDependencies(container);
 
   const loggerService = container.resolve(LoggerService);

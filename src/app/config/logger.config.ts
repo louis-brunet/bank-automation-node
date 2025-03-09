@@ -1,4 +1,4 @@
-import { singleton } from 'tsyringe';
+import { Lifecycle, scoped } from 'tsyringe';
 import { object, string } from 'yup';
 import { Env } from './env';
 
@@ -9,7 +9,7 @@ const envSchema = object({
   LOG_LEVEL: string<LogLevel>().oneOf(logLevels).default('info'),
 });
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class LoggerConfig {
   public readonly level: LogLevel;
 

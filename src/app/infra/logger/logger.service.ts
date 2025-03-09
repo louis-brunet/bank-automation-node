@@ -1,13 +1,17 @@
 import pino, { Logger } from 'pino';
 import pinoPretty from 'pino-pretty';
-import { Lifecycle, scoped } from 'tsyringe';
+import { delay, inject, Lifecycle, scoped } from 'tsyringe';
 import { LoggerConfig } from '../../config';
 
 @scoped(Lifecycle.ContainerScoped)
 export class LoggerService {
   private readonly logger: Logger;
 
-  constructor(loggerConfig: LoggerConfig) {
+  constructor(
+    // FIXME: why is this necessary now? is it same reason why tests run so slowly now?
+    @inject(delay(() => LoggerConfig)) private loggerConfig: LoggerConfig,
+  ) {
+    // constructor(private loggerConfig: LoggerConfig) {
     const prettyPrint = pinoPretty({
       customPrettifiers: {
         name: (names) => {
@@ -22,7 +26,7 @@ export class LoggerService {
       },
     });
     this.logger = pino(prettyPrint);
-    this.logger.level = loggerConfig.level;
+    this.logger.level = this.loggerConfig.level;
   }
 
   getLogger(name?: string): Logger {

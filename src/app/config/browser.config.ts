@@ -1,7 +1,7 @@
-import { singleton } from 'tsyringe';
+import { SupportedBrowser } from 'puppeteer';
+import { Lifecycle, scoped } from 'tsyringe';
 import { boolean, InferType, number, object, string } from 'yup';
 import { Env } from './env';
-import { SupportedBrowser } from 'puppeteer';
 
 const envSchema = object({
   BROWSER_DEFAULT_TIMEOUT_MILLISECONDS: number()
@@ -29,7 +29,7 @@ const envSchema = object({
 });
 export type BrowserEnv = InferType<typeof envSchema>;
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class BrowserConfig {
   public readonly defaultTimeoutMilliseconds: number;
   public readonly defaultNavigationTimeoutMilliseconds: number;

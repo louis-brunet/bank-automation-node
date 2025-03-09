@@ -1,4 +1,4 @@
-import { Lifecycle, scoped } from 'tsyringe';
+import { delay, inject, Lifecycle, scoped } from 'tsyringe';
 import { LoggerService } from '../infra';
 import { Logger } from 'pino';
 import { CaisseDEpargneAdapter } from '../adapters';
@@ -10,6 +10,7 @@ export class BankAutomationService {
 
   constructor(
     private readonly loggerService: LoggerService,
+    @inject(delay(() => CaisseDEpargneAdapter))
     private readonly caisseDEpargneAdapter: CaisseDEpargneAdapter,
     private readonly storageService: StorageService,
   ) {

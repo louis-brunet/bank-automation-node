@@ -1,12 +1,12 @@
-import { singleton } from 'tsyringe';
+import { Lifecycle, scoped } from 'tsyringe';
 import { array, object, string } from 'yup';
-import { Env } from './env';
 import {
   GoogleSheetsScope,
   googleSheetsScopeArray,
   GoogleSheetsVersion,
   googleSheetsVersionArray,
 } from '../infra';
+import { Env } from './env';
 
 const envSchema = object({
   GOOGLE_SHEETS_SCOPES: array(
@@ -23,7 +23,7 @@ const envSchema = object({
     .default('v4'),
 });
 
-@singleton()
+@scoped(Lifecycle.ContainerScoped)
 export class GoogleSheetsConfig {
   public readonly scopes: GoogleSheetsScope[];
   public readonly credentialsPath: string;

@@ -17,6 +17,11 @@ export class SpreadsheetService {
   }
 
   async updateCell(request: SpreadsheetUpdateCellRequest) {
+    const logger = this.loggerService.getChild(
+      this.logger,
+      this.updateCell.name,
+    );
+    logger.trace({ request });
     const adapter = this._getAdapter(request.provider);
     await adapter.updateCell(request);
     // await adapter.updateRange(numberToWrite, location);

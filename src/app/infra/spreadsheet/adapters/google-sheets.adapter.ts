@@ -4,7 +4,7 @@ import { google } from 'googleapis';
 import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import { Logger } from 'pino';
-import { Lifecycle, scoped } from 'tsyringe';
+import { delay, inject, Lifecycle, scoped } from 'tsyringe';
 import { object, string } from 'yup';
 import { GoogleSheetsConfig } from '../../../config';
 import { LoggerService } from '../../logger';
@@ -19,6 +19,7 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
 
   constructor(
     private readonly loggerService: LoggerService,
+    @inject(delay(() => GoogleSheetsConfig))
     private readonly config: GoogleSheetsConfig,
   ) {
     super();
@@ -35,7 +36,12 @@ export class GoogleSheetsAdapter extends AbstractSpreadsheetAdapter {
     //   spreadsheetId: request.spreadsheetId,
     //   range,
     // });
-    const result = await sheets.spreadsheets.values.update({});
+
+    await Promise.reject(new Error('todo'));
+
+    const result = await sheets.spreadsheets.values.update({
+      // .....
+    });
     const expectedUpdatedCellCount = 1;
     const updatedCells = result.data.updatedCells;
     if (
