@@ -32,20 +32,34 @@ export class CaisseDEpargneAdapter {
     this.logger = this.loggerService.getLogger(CaisseDEpargneAdapter.name);
   }
 
-  async getCheckingAccountBalance(): Promise<number> {
+  async getAccountBalances() {
     const logger = this.loggerService.getChild(
       this.logger,
-      this.getCheckingAccountBalance.name,
+      this.getAccountBalances.name,
     );
     logger.trace('called');
     await this.login();
     const balances = await this._getAccountBalanceLoggedIn([
       this.config.checkingAccount,
+      this.config.livretJeuneAccount,
+      this.config.livretAAccount,
     ]);
     const checkingAccountBalance = balances[this.config.checkingAccount];
+    const livretAAccountBalance = balances[this.config.livretAAccount];
+    const livretJeuneAccountBalance = balances[this.config.livretJeuneAccount];
+
+    // TODO: error handling?
     assert.ok(checkingAccountBalance !== undefined);
-    logger.debug({ checkingAccountBalance });
-    return checkingAccountBalance;
+    assert.ok(livretAAccountBalance !== undefined);
+    assert.ok(livretJeuneAccountBalance !== undefined);
+
+    const result = {
+      checkingAccountBalance,
+      livretAAccountBalance,
+      livretJeuneAccountBalance,
+    };
+    logger.debug(result);
+    return result;
   }
 
   private async login() {
@@ -135,6 +149,10 @@ export class CaisseDEpargneAdapter {
       this._getAccountBalanceLoggedIn.name,
     );
     logger.trace({ accountIds });
+
+    await this.browserService.get(
+      `${this.config.baseUrl}/espace-client/compte`,
+    );
 
     await using accountTiles = await this.browserService.findElements({
       by: BrowserServiceFindBy.SELECTOR,
@@ -258,7 +276,7 @@ export class CaisseDEpargneAdapter {
   ): string | undefined {
     const logger = this.loggerService.getChild(
       this.logger,
-      this.getCheckingAccountBalance.name,
+      this.getAccountBalances.name,
     );
     logger.trace({ backgroundImage });
     if (backgroundImage === undefined) {

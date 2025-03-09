@@ -23,13 +23,19 @@ export class BankAutomationService {
       this.logger,
       this.updateAccountBalances.name,
     );
-    const balance =
-      await this.caisseDEpargneAdapter.getCheckingAccountBalance();
-    logger.info({ balance });
+    const balances = await this.caisseDEpargneAdapter.getAccountBalances();
+    logger.info({ balances });
 
-    await this.storageService.setCheckingAccountBalance(balance);
+    await this.storageService.setCheckingAccountBalance(
+      balances.checkingAccountBalance,
+    );
 
-    logger.warn('TODO');
-    throw new Error('todo');
+    await this.storageService.setLivretAAccountBalance(
+      balances.livretAAccountBalance,
+    );
+
+    await this.storageService.setLivretJeuneAccountBalance(
+      balances.livretJeuneAccountBalance,
+    );
   }
 }

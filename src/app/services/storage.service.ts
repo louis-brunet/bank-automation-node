@@ -1,10 +1,6 @@
 import { Logger } from 'pino';
 import { Lifecycle, scoped } from 'tsyringe';
-import {
-  LoggerService,
-  SpreadsheetService,
-  SpreadsheetUpdateCellRequest,
-} from '../infra';
+import { LoggerService, SpreadsheetService } from '../infra';
 import { StorageConfig } from '../config/storage.config';
 
 @scoped(Lifecycle.ContainerScoped)
@@ -26,8 +22,7 @@ export class StorageService {
       this.setCheckingAccountBalance.name,
     );
     logger.trace({ balance });
-
-    const request: SpreadsheetUpdateCellRequest = {
+    await this.spreadsheetService.updateCell({
       value: balance,
       provider: 'google-sheets',
       spreadsheetId: this.config.spreadsheetId,
@@ -36,7 +31,42 @@ export class StorageService {
         column: this.config.checkingAccountCellColumn,
         sheet: this.config.checkingAccountCellSheet,
       },
-    };
-    await this.spreadsheetService.updateCell(request);
+    });
+  }
+
+  async setLivretAAccountBalance(balance: number) {
+    const logger = this.loggerService.getChild(
+      this.logger,
+      this.setLivretAAccountBalance.name,
+    );
+    logger.trace({ balance });
+    await this.spreadsheetService.updateCell({
+      value: balance,
+      provider: 'google-sheets',
+      spreadsheetId: this.config.spreadsheetId,
+      cell: {
+        row: this.config.livretAAccountCellRow,
+        column: this.config.livretAAccountCellColumn,
+        sheet: this.config.livretAAccountCellSheet,
+      },
+    });
+  }
+
+  async setLivretJeuneAccountBalance(balance: number) {
+    const logger = this.loggerService.getChild(
+      this.logger,
+      this.setLivretJeuneAccountBalance.name,
+    );
+    logger.trace({ balance });
+    await this.spreadsheetService.updateCell({
+      value: balance,
+      provider: 'google-sheets',
+      spreadsheetId: this.config.spreadsheetId,
+      cell: {
+        row: this.config.livretJeuneAccountCellRow,
+        column: this.config.livretJeuneAccountCellColumn,
+        sheet: this.config.livretJeuneAccountCellSheet,
+      },
+    });
   }
 }
