@@ -13,6 +13,8 @@ const processEnv: CaisseDEpargneEnv & BrowserEnv = {
   CAISSE_D_EPARGNE_ACCOUNT_ID: 'fake_account_id',
   CAISSE_D_EPARGNE_ACCOUNT_PASSWORD: '00000000',
   CAISSE_D_EPARGNE_CHECKING_ACCOUNT: 'fake_checking_account',
+  CAISSE_D_EPARGNE_LIVRET_A_ACCOUNT: 'fake_livret_a_account',
+  CAISSE_D_EPARGNE_LIVRET_JEUNE_ACCOUNT: 'fake_livret_jeune_account',
   CAISSE_D_EPARGNE_BASE_URL: 'fake_base_url',
   CAISSE_D_EPARGNE_MFA_WAIT_TIMEOUT_MS: 1,
   BROWSER_DEFAULT_TIMEOUT_MILLISECONDS: 0,
