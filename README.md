@@ -1,6 +1,7 @@
 # bank-automation-node
 
 ```bash
+corepack enable
 yarn install
 yarn build
 yarn test
